@@ -17,7 +17,7 @@
             border: 4px solid #00ff00;
             width: 600px;
             box-shadow: 0 0 30px #00ff00;
-            animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            animation: bounceIn 0.5s ease;
         }
         h1 { margin: 0; font-size: 32px; color: #00ff00; text-transform: uppercase; }
         h2 { margin: 10px 0; font-size: 40px; font-weight: bold; }
@@ -34,9 +34,12 @@
         <p id="alert-message"></p>
     </div>
 
+    <audio id="tts-player"></audio>
+
     <script>
         setInterval(checkAlerts, 3000);
         let isAlertPlaying = false;
+        const audioPlayer = document.getElementById('tts-player');
 
         async function checkAlerts() {
             if (isAlertPlaying) return;
@@ -54,28 +57,34 @@
             isAlertPlaying = true;
             const alertBox = document.getElementById('alert-box');
             
-            // 1. Update Visuals
+            // 1. Visuals
             document.getElementById('alert-amount').innerHTML = `${data.name}: ₹${data.amount}`;
             document.getElementById('alert-message').innerHTML = `"${data.message}"`;
             alertBox.style.display = 'block';
 
-            // 2. Prepare Text
+            // 2. Audio Logic (The Fix)
             const textToRead = `${data.name} sent ${data.amount} rupees and says ${data.message}`;
             
-            // 3. Use StreamElements API (Brian Voice)
-            // This API returns a direct MP3 file that OBS loves.
-            const ttsUrl = `https://api.streamelements.com/kappa/v2/speech?voice=Brian&text=${encodeURIComponent(textToRead)}`;
+            // We request audio from OUR OWN server path "/speak"
+            // This bypasses OBS security blocks
+            audioPlayer.src = `/speak?text=${encodeURIComponent(textToRead)}`;
             
-            const audio = new Audio(ttsUrl);
-            audio.volume = 1.0;
+            audioPlayer.volume = 1.0;
+            
+            // Force play
+            const playPromise = audioPlayer.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.log("Audio play failed. Attempting to force un-mute.");
+                });
+            }
 
-            // 4. Force Play
-            audio.play().catch(e => console.error("Audio error:", e));
-
-            // 5. Hide Alert after 8 seconds
+            // 3. Reset after 8 seconds
             setTimeout(() => {
                 alertBox.style.display = 'none';
                 isAlertPlaying = false;
+                audioPlayer.pause();
+                audioPlayer.currentTime = 0;
             }, 8000);
         }
     </script>

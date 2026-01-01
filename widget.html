@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { margin: 0; background: transparent; overflow: hidden; font-family: 'Arial', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        #alert-box {
+            display: none;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            border: 4px solid #00ff00;
+            width: 500px;
+            animation: bounceIn 0.5s;
+        }
+        h1 { color: #00ff00; margin: 0; }
+        h2 { font-size: 40px; margin: 10px 0; }
+        p { font-size: 24px; font-style: italic; color: #eee; }
+        @keyframes bounceIn { 0% { transform: scale(0); } 80% { transform: scale(1.1); } 100% { transform: scale(1); } }
+    </style>
+</head>
+<body>
+    <div id="alert-box">
+        <h1>New Donation!</h1>
+        <h2 id="text-amount"></h2>
+        <p id="text-msg"></p>
+    </div>
+    <script>
+        setInterval(async () => {
+            try {
+                const res = await fetch('/get-alert');
+                const data = await res.json();
+                if (data) playAlert(data);
+            } catch (e) {}
+        }, 3000);
+
+        function playAlert(data) {
+            const box = document.getElementById('alert-box');
+            document.getElementById('text-amount').innerText = `${data.name}: ₹${data.amount}`;
+            document.getElementById('text-msg').innerText = data.message;
+            
+            box.style.display = 'block';
+
+            // TTS
+            const tts = new SpeechSynthesisUtterance(`${data.name} sent ${data.amount} rupees and says ${data.message}`);
+            window.speechSynthesis.speak(tts);
+
+            tts.onend = () => { setTimeout(() => { box.style.display = 'none'; }, 2000); };
+        }
+    </script>
+</body>
+</html>

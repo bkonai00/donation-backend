@@ -64,29 +64,29 @@
             
             alertBox.style.display = 'block';
 
-            // --- TTS LOGIC ---
+            // --- SIMPLIFIED TTS LOGIC ---
+            // 1. Cancel any current speech
+            window.speechSynthesis.cancel();
+
+            // 2. Create simple message
             const ttsMsg = new SpeechSynthesisUtterance();
-            ttsMsg.text = `${data.name} sent ${data.amount} rupees and says ${data.message}`;
-            ttsMsg.volume = 1; // Max volume
-            ttsMsg.rate = 1;   // Normal speed
-            ttsMsg.pitch = 1;  // Normal pitch
-
-            // Try to find a good voice, otherwise use default
-            const voices = window.speechSynthesis.getVoices();
-            // Look for Google UK English Female or Microsoft Zira (popular ones)
-            // If not found, it will just use the computer default.
-            const preferredVoice = voices.find(v => v.name.includes('Google') || v.name.includes('Zira'));
-            if(preferredVoice) ttsMsg.voice = preferredVoice;
-
+            ttsMsg.text = `${data.name} sent ${data.amount} rupees says ${data.message}`;
+            ttsMsg.volume = 1; 
+            ttsMsg.rate = 1; 
+            
+            // 3. REMOVED the specific voice selection code (It often breaks OBS)
+            // It will now use whatever default voice Windows/OBS has.
+            
             window.speechSynthesis.speak(ttsMsg);
 
-            // Hide after speech ends
+            // Hide after TTS finishes
             ttsMsg.onend = function() {
                 setTimeout(() => {
                     alertBox.style.display = 'none';
                     isAlertPlaying = false;
                 }, 1000);
             };
+        }
 
             // Safety fallback: If TTS fails to start, clear the box anyway after 10 seconds
             setTimeout(() => {

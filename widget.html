@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OBS Alert</title>
     <style>
-        body { margin: 0; background: transparent; overflow: hidden; font-family: 'Arial', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        body { margin: 0; padding: 0; background: transparent; overflow: hidden; font-family: 'Arial', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; }
         #alert-box {
             display: none;
             text-align: center;
@@ -13,42 +14,87 @@
             padding: 20px;
             border-radius: 15px;
             border: 4px solid #00ff00;
-            width: 500px;
-            animation: bounceIn 0.5s;
+            width: 600px;
+            animation: popIn 0.5s ease;
         }
-        h1 { color: #00ff00; margin: 0; }
-        h2 { font-size: 40px; margin: 10px 0; }
-        p { font-size: 24px; font-style: italic; color: #eee; }
-        @keyframes bounceIn { 0% { transform: scale(0); } 80% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        h1 { margin: 0; font-size: 32px; color: #00ff00; }
+        h2 { margin: 10px 0; font-size: 48px; font-weight: bold; }
+        p { font-size: 24px; font-style: italic; }
+        @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
     </style>
 </head>
 <body>
+
     <div id="alert-box">
-        <h1>New Donation!</h1>
-        <h2 id="text-amount"></h2>
-        <p id="text-msg"></p>
+        <h1 id="alert-title">New Donation!</h1>
+        <h2 id="alert-amount"></h2>
+        <p id="alert-message"></p>
     </div>
+
     <script>
-        setInterval(async () => {
+        // Force voice loading immediately
+        window.speechSynthesis.getVoices();
+
+        setInterval(checkAlerts, 3000);
+
+        let isAlertPlaying = false;
+
+        async function checkAlerts() {
+            if (isAlertPlaying) return;
+
             try {
-                const res = await fetch('/get-alert');
-                const data = await res.json();
-                if (data) playAlert(data);
-            } catch (e) {}
-        }, 3000);
+                // Fetch from your backend
+                const response = await fetch('/get-alert'); 
+                const data = await response.json();
+
+                if (data) {
+                    playAlert(data);
+                }
+            } catch (error) {
+                // error is expected if no alert exists
+            }
+        }
 
         function playAlert(data) {
-            const box = document.getElementById('alert-box');
-            document.getElementById('text-amount').innerText = `${data.name}: ₹${data.amount}`;
-            document.getElementById('text-msg').innerText = data.message;
+            isAlertPlaying = true;
+            const alertBox = document.getElementById('alert-box');
             
-            box.style.display = 'block';
+            document.getElementById('alert-amount').innerHTML = `${data.name} donated ₹${data.amount}`;
+            document.getElementById('alert-message').innerHTML = `"${data.message}"`;
+            
+            alertBox.style.display = 'block';
 
-            // TTS
-            const tts = new SpeechSynthesisUtterance(`${data.name} sent ${data.amount} rupees and says ${data.message}`);
-            window.speechSynthesis.speak(tts);
+            // --- TTS LOGIC ---
+            const ttsMsg = new SpeechSynthesisUtterance();
+            ttsMsg.text = `${data.name} sent ${data.amount} rupees and says ${data.message}`;
+            ttsMsg.volume = 1; // Max volume
+            ttsMsg.rate = 1;   // Normal speed
+            ttsMsg.pitch = 1;  // Normal pitch
 
-            tts.onend = () => { setTimeout(() => { box.style.display = 'none'; }, 2000); };
+            // Try to find a good voice, otherwise use default
+            const voices = window.speechSynthesis.getVoices();
+            // Look for Google UK English Female or Microsoft Zira (popular ones)
+            // If not found, it will just use the computer default.
+            const preferredVoice = voices.find(v => v.name.includes('Google') || v.name.includes('Zira'));
+            if(preferredVoice) ttsMsg.voice = preferredVoice;
+
+            window.speechSynthesis.speak(ttsMsg);
+
+            // Hide after speech ends
+            ttsMsg.onend = function() {
+                setTimeout(() => {
+                    alertBox.style.display = 'none';
+                    isAlertPlaying = false;
+                }, 1000);
+            };
+
+            // Safety fallback: If TTS fails to start, clear the box anyway after 10 seconds
+            setTimeout(() => {
+                if(isAlertPlaying) {
+                    alertBox.style.display = 'none';
+                    isAlertPlaying = false;
+                }
+            }, 10000);
         }
     </script>
 </body>

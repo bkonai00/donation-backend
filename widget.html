@@ -6,6 +6,7 @@
     <title>OBS Alert</title>
     <style>
         body { margin: 0; padding: 0; background: transparent; overflow: hidden; font-family: 'Arial', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        
         #alert-box {
             display: none;
             text-align: center;
@@ -15,11 +16,13 @@
             border-radius: 15px;
             border: 4px solid #00ff00;
             width: 600px;
+            box-shadow: 0 0 30px #00ff00;
             animation: popIn 0.5s ease;
         }
         h1 { margin: 0; font-size: 32px; color: #00ff00; }
-        h2 { margin: 10px 0; font-size: 48px; font-weight: bold; }
-        p { font-size: 24px; font-style: italic; }
+        h2 { margin: 10px 0; font-size: 40px; font-weight: bold; }
+        p { font-size: 24px; font-style: italic; color: #ddd; }
+        
         @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
     </style>
 </head>
@@ -32,69 +35,55 @@
     </div>
 
     <script>
-        // Force voice loading immediately
-        window.speechSynthesis.getVoices();
-
         setInterval(checkAlerts, 3000);
-
         let isAlertPlaying = false;
 
         async function checkAlerts() {
             if (isAlertPlaying) return;
 
             try {
-                // Fetch from your backend
                 const response = await fetch('/get-alert'); 
                 const data = await response.json();
-
                 if (data) {
                     playAlert(data);
                 }
-            } catch (error) {
-                // error is expected if no alert exists
-            }
+            } catch (error) { }
         }
 
         function playAlert(data) {
             isAlertPlaying = true;
             const alertBox = document.getElementById('alert-box');
             
-            document.getElementById('alert-amount').innerHTML = `${data.name} donated ₹${data.amount}`;
+            // Visuals
+            document.getElementById('alert-amount').innerHTML = `${data.name}: ₹${data.amount}`;
             document.getElementById('alert-message').innerHTML = `"${data.message}"`;
-            
             alertBox.style.display = 'block';
 
-            // --- SIMPLIFIED TTS LOGIC ---
-            // 1. Cancel any current speech
-            window.speechSynthesis.cancel();
-
-            // 2. Create simple message
-            const ttsMsg = new SpeechSynthesisUtterance();
-            ttsMsg.text = `${data.name} sent ${data.amount} rupees says ${data.message}`;
-            ttsMsg.volume = 1; 
-            ttsMsg.rate = 1; 
+            // --- NEW MP3 AUDIO METHOD ---
+            const textToRead = `${data.name} sent ${data.amount} rupees and says ${data.message}`;
             
-            // 3. REMOVED the specific voice selection code (It often breaks OBS)
-            // It will now use whatever default voice Windows/OBS has.
+            // This URL generates an MP3 file from Google Translate
+            const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=${encodeURIComponent(textToRead)}`;
             
-            window.speechSynthesis.speak(ttsMsg);
+            const audio = new Audio(ttsUrl);
+            audio.volume = 1.0;
+            
+            // Play the audio
+            const playPromise = audio.play();
 
-            // Hide after TTS finishes
-            ttsMsg.onend = function() {
-                setTimeout(() => {
-                    alertBox.style.display = 'none';
-                    isAlertPlaying = false;
-                }, 1000);
-            };
-        }
+            if (playPromise !== undefined) {
+                playPromise.then(_ => {
+                    // Audio started playing
+                }).catch(error => {
+                    console.error("Audio playback failed:", error);
+                });
+            }
 
-            // Safety fallback: If TTS fails to start, clear the box anyway after 10 seconds
+            // Hide alert after 8 seconds
             setTimeout(() => {
-                if(isAlertPlaying) {
-                    alertBox.style.display = 'none';
-                    isAlertPlaying = false;
-                }
-            }, 10000);
+                alertBox.style.display = 'none';
+                isAlertPlaying = false;
+            }, 8000);
         }
     </script>
 </body>
